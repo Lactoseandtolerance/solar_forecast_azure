@@ -1,0 +1,1 @@
+# solar_forecast_azure
