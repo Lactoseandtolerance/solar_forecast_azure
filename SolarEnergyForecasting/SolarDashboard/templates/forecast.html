@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forecast Results - Solar Energy Forecasting</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .stat-card {
+            border-left: 5px solid #4facfe;
+            transition: transform 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .page-header {
+            background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            height: 400px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img src="https://img.icons8.com/fluency/48/000000/sun.png" width="30" height="30" class="d-inline-block align-top" alt="">
+                Solar Forecast
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/forecast">Get Forecast</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <div class="container">
+            <h1>Solar Forecast Results</h1>
+            <p class="lead">Forecast for {{ location }}</p>
+        </div>
+    </div>
+
+    <div class="container mb-5">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Energy</h5>
+                        <p class="display-5">{{ total_energy }} kWh</p>
+                        <p class="text-muted">Forecasted total production</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Daily Average</h5>
+                        <p class="display-5">{{ avg_daily }} kWh</p>
+                        <p class="text-muted">Average daily production</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Peak Production</h5>
+                        <p class="display-5">{{ peak_production }} kWh</p>
+                        <p class="text-muted">Maximum hourly output</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Peak Time</h5>
+                        <p class="h4">{{ peak_hour }}</p>
+                        <p class="text-muted">Time of maximum production</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Hourly Solar Energy Forecast</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="hourly_chart" class="chart-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Daily Solar Energy Forecast</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="daily_chart" class="chart-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Forecast Insights</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Energy Production Analysis</h6>
+                        <p>
+                            Based on the forecast, {{ location }} is expected to produce a total of {{ total_energy }} kWh 
+                            over the forecast period, with an average daily production of {{ avg_daily }} kWh.
+                        </p>
+                        <h6>Peak Production</h6>
+                        <p>
+                            The peak production time is expected to be {{ peak_hour }} with {{ peak_production }} kWh. 
+                            This information can be used for optimizing grid operations and energy storage.
+                        </p>
+                        <h6>Recommendations</h6>
+                        <ul>
+                            <li>Schedule high-energy maintenance operations during peak production times</li>
+                            <li>Adjust energy storage charge cycles based on the production forecast</li>
+                            <li>Plan grid integration based on the hourly production pattern</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="/forecast" class="btn btn-primary">Generate New Forecast</a>
+            <a href="/" class="btn btn-outline-secondary ms-2">Back to Home</a>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-white py-3">
+        <div class="container text-center">
+            <p>Solar Energy Forecasting Project © 2025</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Plot the hourly chart
+        const hourlyData = {{ hourly_plot|safe }};
+        Plotly.newPlot('hourly_chart', hourlyData.data, hourlyData.layout);
+        
+        // Plot the daily chart
+        const dailyData = {{ daily_plot|safe }};
+        Plotly.newPlot('daily_chart', dailyData.data, dailyData.layout);
+    </script>
+</body>
+</html>
