@@ -16,7 +16,7 @@ def main(mytimer: func.TimerRequest) -> None:
     logging.info('Python timer trigger function ran at %s', utc_timestamp)
     
     # Get OpenWeatherMap API key from environment variable
-    api_key = os.environ["db5789f6264a997c47c8f42349cd8ae8"]
+    api_key = os.environ["OPENWEATHERMAP_API_KEY"]
     
     # Define locations for data collection (latitude, longitude)
     locations = [

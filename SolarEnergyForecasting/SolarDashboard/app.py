@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 import plotly
 import plotly.express as px
 import plotly.graph_objects as go
+import logging
+from logging.handlers import RotatingFileHandler
 
 app = Flask(__name__)
 
@@ -16,29 +18,35 @@ endpoint_url = os.environ.get("ML_ENDPOINT_URL")
 api_key = os.environ.get("ML_API_KEY")
 
 # Mock data for testing without the actual endpoint
-def get_mock_forecast_data():
-    # Create a date range for the next 7 days
-    dates = [(datetime.now() + timedelta(hours=i)).isoformat() for i in range(168)]  # 24*7 hours
-    
-    # Generate mock solar production values
-    # Higher during day, zero at night, variation by cloud cover
-    forecast_values = []
-    for i in range(168):
-        hour = (datetime.now() + timedelta(hours=i)).hour
-        if 6 <= hour <= 18:  # Daytime
-            # Simulate bell curve for solar production during the day
-            hour_factor = 1 - abs((hour - 12) / 6)  # Peak at noon
-            # Random factor for weather (0.5-1.0)
-            weather_factor = 0.5 + 0.5 * ((i % 3) / 3)
-            value = 100 * hour_factor * weather_factor
-        else:
-            value = 0  # No production at night
-        forecast_values.append(value)
-    
-    return {
-        "timestamps": dates,
-        "forecast_values": forecast_values
+def get_forecast_from_endpoint(location_data):
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {api_key}'
     }
+    
+    try:
+        response = requests.post(endpoint_url, json=location_data, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error calling endpoint: {response.status_code}, {response.text}")
+            # Fall back to mock data for testing
+            return get_mock_forecast_data()
+    except Exception as e:
+        print(f"Exception calling endpoint: {str(e)}")
+        # Fall back to mock data for testing
+        return get_mock_forecast_data()
+
+# In the forecast route, replace mock data with:
+# Prepare weather data for the selected location
+weather_data = {
+    "location": location,
+    "forecast_days": forecast_days,
+    # Add more parameters as needed by your model
+}
+
+# Get forecast from ML endpoint
+forecast_data = get_forecast_from_endpoint(weather_data)
 
 # Get forecast from the Azure ML endpoint
 def get_forecast_from_endpoint(location_data):
@@ -122,6 +130,19 @@ def forecast():
     
     # If GET request, show the form
     return render_template('forecast_form.html')
+
+# Setup logging
+if not os.path.exists('logs'):
+    os.mkdir('logs')
+    
+file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+file_handler.setLevel(logging.INFO)
+app.logger.addHandler(file_handler)
+app.logger.setLevel(logging.INFO)
+app.logger.info('Solar Dashboard startup')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
