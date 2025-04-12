@@ -1,75 +1,30 @@
-# app.py - Flask Web App for Solar Forecast Dashboard
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request
 import os
-import requests
 import json
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly
 import plotly.express as px
-import plotly.graph_objects as go
-import logging
-from logging.handlers import RotatingFileHandler
 
 app = Flask(__name__)
 
-# Azure ML endpoint info
-endpoint_url = os.environ.get("ML_ENDPOINT_URL")
-api_key = os.environ.get("ML_API_KEY")
-
-# Mock data for testing without the actual endpoint
-def get_forecast_from_endpoint(location_data):
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {api_key}'
-    }
+def get_mock_forecast_data():
+    start_time = datetime.now().replace(minute=0, second=0, microsecond=0)
+    timestamps = [(start_time + timedelta(hours=i)).isoformat() for i in range(24 * 7)]
     
-    try:
-        response = requests.post(endpoint_url, json=location_data, headers=headers)
-        if response.status_code == 200:
-            return response.json()
+    forecast_values = []
+    for i in range(24 * 7):
+        hour = (start_time + timedelta(hours=i)).hour
+        if hour < 6 or hour > 18:
+            forecast_values.append(0)
         else:
-            print(f"Error calling endpoint: {response.status_code}, {response.text}")
-            # Fall back to mock data for testing
-            return get_mock_forecast_data()
-    except Exception as e:
-        print(f"Exception calling endpoint: {str(e)}")
-        # Fall back to mock data for testing
-        return get_mock_forecast_data()
-
-# In the forecast route, replace mock data with:
-# Prepare weather data for the selected location
-weather_data = {
-    "location": location,
-    "forecast_days": forecast_days,
-    # Add more parameters as needed by your model
-}
-
-# Get forecast from ML endpoint
-forecast_data = get_forecast_from_endpoint(weather_data)
-
-# Get forecast from the Azure ML endpoint
-def get_forecast_from_endpoint(location_data):
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {api_key}'
-    }
+            hour_factor = 1 - abs(hour - 12) / 6
+            base_value = hour_factor * 80
+            forecast_values.append(round(base_value * (0.8 + 0.4 * (i % 7) / 6), 2))
     
-    try:
-        response = requests.post(endpoint_url, json=location_data, headers=headers)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"Error calling endpoint: {response.status_code}, {response.text}")
-            return None
-    except Exception as e:
-        print(f"Exception calling endpoint: {str(e)}")
-        return None
+    return {"timestamps": timestamps, "forecast_values": forecast_values}
 
-@app.route('/')
-def home():
-    return render_template('index.html')
-
+# Change forecast route to handle both GET and POST
 @app.route('/forecast', methods=['GET', 'POST'])
 def forecast():
     if request.method == 'POST':
@@ -77,20 +32,13 @@ def forecast():
         location = request.form.get('location')
         forecast_days = int(request.form.get('forecast_days', 7))
         
-        # In a real app, you would prepare the actual weather forecast data 
-        # from a weather API based on the selected location
+        # Get mock forecast data
+        forecast_data = get_mock_forecast_data()
         
-        # For demonstration, we'll use mock data
-        mock_data = get_mock_forecast_data()
-        
-        # In a production app, you would call the ML endpoint:
-        # forecast_data = get_forecast_from_endpoint(weather_data)
-        
-        # Create a DataFrame for visualization
+        # Create DataFrame
         df = pd.DataFrame({
-            'timestamp': [datetime.fromisoformat(ts.replace('Z', '+00:00')) 
-                         for ts in mock_data['timestamps']],
-            'forecast_kwh': mock_data['forecast_values']
+            'timestamp': [datetime.fromisoformat(ts) for ts in forecast_data['timestamps']],
+            'forecast_kwh': forecast_data['forecast_values']
         })
         
         # Calculate daily totals
@@ -99,22 +47,19 @@ def forecast():
         
         # Create plots
         hourly_fig = px.line(df, x='timestamp', y='forecast_kwh', 
-                            title=f'Hourly Solar Energy Forecast for {location}',
-                            labels={'timestamp': 'Time', 'forecast_kwh': 'Energy (kWh)'},
-                            line_shape='spline')
-                            
+                            title=f'Hourly Solar Energy Forecast for {location}')
         daily_fig = px.bar(daily_totals, x='date', y='forecast_kwh',
-                          title=f'Daily Solar Energy Forecast for {location}',
-                          labels={'date': 'Date', 'forecast_kwh': 'Energy (kWh)'})
+                          title=f'Daily Solar Energy Forecast for {location}')
         
-        # Convert plots to JSON for the template
+        # Convert plots to JSON
         hourly_plot_json = json.dumps(hourly_fig, cls=plotly.utils.PlotlyJSONEncoder)
         daily_plot_json = json.dumps(daily_fig, cls=plotly.utils.PlotlyJSONEncoder)
         
-        # Calculate some statistics
+        # Calculate stats
         total_energy = daily_totals['forecast_kwh'].sum()
         avg_daily = daily_totals['forecast_kwh'].mean()
-        peak_hour = df.loc[df['forecast_kwh'].idxmax(), 'timestamp']
+        peak_hour_idx = df['forecast_kwh'].idxmax()
+        peak_hour = df.loc[peak_hour_idx, 'timestamp']
         peak_production = df['forecast_kwh'].max()
         
         return render_template(
@@ -131,18 +76,13 @@ def forecast():
     # If GET request, show the form
     return render_template('forecast_form.html')
 
-# Setup logging
-if not os.path.exists('logs'):
-    os.mkdir('logs')
-    
-file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-))
-file_handler.setLevel(logging.INFO)
-app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
-app.logger.info('Solar Dashboard startup')
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/forecast', methods=['GET'])
+def forecast_form():
+    return render_template('forecast_form.html')
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    app.run(debug=True, host='0.0.0.0', port=8080)
