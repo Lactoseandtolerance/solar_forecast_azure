@@ -7,6 +7,16 @@ import azure.functions as func
 from azure.storage.blob import BlobServiceClient, BlobClient, ContentSettings
 
 def main(mytimer: func.TimerRequest) -> None:
+    
+    if os.environ.get("LOCAL_TESTING") == "true":
+        logging.info("Running in local testing mode - skipping Azure Storage operations")
+        # Get current weather data
+        weather_url = f"https://api.openweathermap.org/data/2.5/weather?lat=40.7128&lon=-74.0060&appid={api_key}&units=metric"
+        weather_response = requests.get(weather_url)
+        logging.info(f"Weather API response: {weather_response.status_code}")
+        logging.info(f"Weather data: {weather_response.json()}")
+        return
+
     utc_timestamp = datetime.datetime.utcnow().replace(
         tzinfo=datetime.timezone.utc).isoformat()
     
